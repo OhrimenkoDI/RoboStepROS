@@ -1,0 +1,525 @@
+unit uLibProc;
+
+const
+  // Постоянная перевода градусов
+  deg   = 3.1415926535897932384626433832795/180.0;
+  Sin2Deg = 0.03489949670250097164599518162533;
+  Sin02Deg = 0.00349065141522373226740446299322;
+  Sin30Deg = 0.5;
+  Cos60Deg = 0.5;
+
+
+
+// в родной функции микропаскаль перепутаны аргументы, благо она называется по другому
+// это исправленная функция с дельфийским названием
+Function ArcTan2(var dy,dx:real):real;
+Function AbsR(vin:real):real;
+Function AbsI(vin:integer):integer;
+Function AbsL(vin:longint):longint;
+
+//Знак числа
+Function SignR(vin:real):real;
+
+
+// ищет символ начиная с указанной позиции
+Function Position(ch:char;var st:string;s,e:word):integer;
+
+
+// переводит часть из строки из HEX в Word
+// s бай указывает начало поиска
+Function mHexToDWORDHL(var st:string;var s:word;var er:short):DWord;
+Function mHexToDWORDLH(var st:string;var s:word;var er:short):DWord;
+Function mHexToWORDHL (var st:string;var s:word;var er:short):Word;
+Function mHexToByte   (var st:string;var s:word;var er:short):Byte;
+
+Function mHexToRealHL(var st:string;var s:word;var er:short):Real;
+Function mHexToRealLH(var st:string;var s:word;var er:short):Real;
+
+// обрезаем начало строки
+Procedure StrCut(b:byte;var stIn,stOut:string);
+
+
+// переводит часть из строки из HEX в Word
+// s бай указывает начало поиска
+Function LdHexToDWORD(var st:string;var res:DWord):Boolean;
+Function LdHexToWORD(var st:string;var res:Word):Boolean;
+Function LdHexToByte(var st:string;var res:Byte):Boolean;
+
+
+// Сравниваем две строки на предмет точниго соответствия
+Function TestAllStr(var st1,st2:string):boolean;
+
+// Сравниваем две строки заданное количество байт
+Function TestFirstStr(b:byte;var st1,st2:string):boolean;
+
+// копируем символы строки
+Procedure Copy(var source, receiver : string;s,c:word);
+
+function mStrToFloat(var kurs: string[10]) : real;
+
+// Процедура возвращает подстроку номер, начиная с равно и заканчивая звездочкой
+// разделитель точка с запятой
+Procedure NumStrS(var  source, receiver : string;n:word);
+
+Function NumStrF(var  source: string;n:word):real;
+
+Function NumStrB(var  source: string;n:word):byte;
+Function NumStrW(var  source: string;n:word):word;
+Function NumStrDW(var  source: string;n:word):dword;
+Function NumStrI(var  source: string;n:word):integer;
+
+Function rmax(v1,v2 :real):real;
+Function rmin(v1,v2 :real):real;
+
+Function Dist2(x0,y0,x1,y1:real):real;
+Procedure CosSinBetween2Vectors(Lx,Ly,Sx,Sy:Double; var CosFi,SinFi : Double);
+
+Procedure SwapByteInWord(var wrd : word);
+
+// С какой стороны лежит точка
+Function StatePoint(lpx0,lpy0,lpx1,lpy1,ppx,ppy:real):double;
+
+
+implementation
+
+var
+  str50:string[500];
+
+Procedure SwapByteInWord(var wrd : word);
+var
+  bt : byte;
+begin
+  bt:=Hi(wrd);
+  Hi(wrd):=Lo(wrd);
+  Lo(wrd):=bt;
+end;
+
+Function AbsI(vin:integer):integer;
+begin
+  if vin>=0 then
+    result := vin
+  else
+    result := -vin;
+end;
+
+//Знак числа
+Function SignR(vin:real):real;
+begin
+  if vin<0 then Result:=-1.0 else Result:=1.0;
+end;
+
+
+Function AbsR(vin:real):real;
+begin
+  if vin>=0.0 then
+    result := vin
+  else
+    result := -vin;
+end;
+
+Function AbsL(vin:longint):longint;
+begin
+  if vin>=0 then
+    result := vin
+  else
+    result := -vin;
+end;
+
+
+Procedure CosSinBetween2Vectors(Lx,Ly,Sx,Sy:Double; var CosFi,SinFi : Double);
+var
+  z : Real; // знаменатель
+begin
+  z := Sqrt(Lx*Lx+Ly*Ly)*Sqrt(Sx*Sx+Sy*Sy);
+  if z=0 then begin // Вектора нулевые
+    CosFi := 1;
+    SinFi := 0;
+    exit;
+  end;
+  CosFi := (Lx*Sx+Ly*Sy)/z;
+  SinFi := Sqrt(1-CosFi*CosFi);
+
+  // Решаем со знаком Синуса.
+  // Перпенликуляр это векторное произведение. Его знак опрелеляет знак синуса
+  if (Lx*Sy-Ly*Sx)<0
+    then SinFi:=-SinFi;
+
+end;
+
+
+Function ArcTan2(var dy,dx:real):real;
+begin
+  Result := atan2(dx,dy);
+end;
+
+Function Dist2(x0,y0,x1,y1:real):real;
+var
+  sqrx12,sqry12 : real;
+  dx12,dy12: real;
+begin
+  nop;
+  dx12:=x0-x1;
+  dy12:=y0-y1;
+  sqrx12 := dx12*dx12;
+  sqry12 := dy12*dy12;
+  result:=sqrt(sqrx12+sqry12);
+end;
+
+Function rmax(v1,v2 :real):real;
+begin
+if v1>v2 then
+  result := v1
+else
+  result := v2;
+end;
+
+Function rmin(v1,v2 :real):real;
+begin
+if v1<v2 then
+  result := v1
+else
+  result := v2;
+end;
+
+
+
+
+// ищет символ нпчиная с указанной позиции
+Function Position(ch:char;var st:string;s,e:word):integer;
+var
+  i:integer;
+begin
+  result:=-1;
+  for i:=s to e-1 do begin
+    if st[i]=ch then begin
+      result:=i;
+      exit;
+    end;
+  end;
+end;
+
+Function LdHexToByte(var st:string;var res:byte):Boolean;
+var
+  i:byte;
+  ch:byte;
+begin
+  Result:=true;
+  i:=0;
+  res:=0;
+  while i<2 do begin
+    ch:=byte(st[i]);
+    if ch=0 then exit;
+    if ch>$39 then ch:=ch-7;
+    ch:=ch-$30;
+    if ch>$F then exit;
+    res:=(res shl 4)+ch;
+    inc(i);
+  end;
+end;
+
+Function LdHexToWORD(var st:string;var res:word):Boolean;
+var
+  i:byte;
+  ch:byte;
+begin
+  Result:=true;
+  i:=0;
+  res:=0;
+  while i<4 do begin
+    ch:=byte(st[i]);
+    if ch=0 then exit;
+    if ch>$39 then ch:=ch-7;
+    ch:=ch-$30;
+    if ch>$F then exit;
+    res:=(res shl 4)+ch;
+    inc(i);
+  end;
+end;
+
+Function LdHexToDWORD(var st:string;var res:DWord):Boolean;
+var
+  i:byte;
+  ch:byte;
+begin
+  Result:=true;
+  i:=0;
+  res:=0;
+  while i<8 do begin
+    ch:=byte(st[i]);
+    if ch=0 then exit;
+    if ch>$39 then ch:=ch-7;
+    ch:=ch-$30;
+    if ch>$F then exit;
+    res:=(res shl 4)+ch;
+    inc(i);
+  end;
+end;
+
+
+
+Function NumStrB(var  source: string;n:word):byte;
+begin
+  NumStrS(source,str50,n);
+  ltrim(str50);
+  rtrim(str50);
+  result:=StrToWord(str50);
+end;
+
+Function NumStrW(var  source: string;n:word):word;
+begin
+  NumStrS(source,str50,n);
+  ltrim(str50);
+  rtrim(str50);
+  result:=StrToWord(str50);
+end;
+
+Function NumStrI(var  source: string;n:word):integer;
+begin
+  NumStrS(source,str50,n);
+  ltrim(str50);
+  rtrim(str50);
+  result:=StrToInt(str50);
+end;
+
+Function NumStrDW(var  source: string;n:word):dword;
+begin
+  NumStrS(source,str50,n);
+  ltrim(str50);
+  rtrim(str50);
+  result:=HexToLong(str50);
+end;
+
+Function NumStrF(var  source: string;n:word):real;
+begin
+  NumStrS(source,str50,n);
+  ltrim(str50);
+  rtrim(str50);
+  if  strstr(str50,'.')=dword(-1) then begin
+    str50:=str50+'.0';
+  end;
+  result:=StrToFloat(str50);
+end;
+
+Procedure NumStrS(var  source, receiver : string;n:word);
+var
+  s,e:word;
+  c,i:integer;
+begin
+  c:=-1;
+  s:=0;
+  i:=-1;
+  e:=Length(source);
+  while (s<e) do begin
+    if (source[s]='=')and(i=-1) then begin
+      i:=0;
+    end else
+    if (source[s]=';')and(i<>-1) then begin
+      inc(i);
+      if (i>n) then begin
+        s:=e;
+      end;
+    end else
+    if (source[s]='*')and(i<>-1) then begin
+      s:=e;
+    end else
+    if i=n then begin
+      inc(c);
+      receiver[c]:=source[s];
+    end;
+
+    inc(s);
+  end;
+  inc(c);
+  receiver[c]:=#0;
+end;
+
+function mStrToFloat(var kurs: string[10]) : real;
+var
+ i:byte;
+ reg:real;
+ m:short;
+begin
+ m:=1; // используем как множитель
+ result:=0.0;
+ i:=0;
+ reg:=0.0;
+ while i<=9 do begin
+   if (kurs[i]>=byte('0'))and(kurs[i]<='9') then begin
+     if reg=0 then begin
+       result:=result*10.0;
+       result:=result+real(byte(kurs[i])-byte('0'));
+     end else begin
+       result:=result+real(byte(kurs[i])-byte('0'))/reg;
+       reg:=reg*10;
+     end;
+   end else
+   if kurs[i]='-' then begin
+     m:=-1;
+   end else
+   if kurs[i]='.' then begin
+     reg:=10.0;
+   end else
+     i:=9;
+
+   inc(i);
+ end;
+ result:=result*real(m);
+end;
+
+
+// копируем символы строки
+Procedure Copy(var source, receiver : string;s,c:word);
+var
+  i:integer;
+begin
+  for i:=s to s+c-1 do begin
+    receiver[i-s]:=source[i];
+  end;
+  receiver[i-s+1]:=#0;
+end;
+
+
+// Сравниваем две строки на предмет точного соответствия
+Function TestAllStr(var st1,st2:string):boolean;
+begin
+  result:=(strcmp(st1,st2)=0);
+end;
+
+// Сравниваем две строки заданное количество байт
+Function TestFirstStr(b:byte;var st1,st2:string):boolean;
+var
+  i:byte;
+begin
+  result:=true;
+  for i:=0 to b-1 do
+    result:=result and (st1[i]=st2[i]);
+end;
+
+// обрезаем начало строки
+Procedure StrCut(b:byte;var stIn,stOut:string);
+var
+  l,i:byte;
+begin
+  l:=Length(stIn);
+  for i:=0 to l-b do
+    stOut[i]:=stIn[i+b];
+end;
+
+Function mHexToByte(var st:string;var s:word;var er:short):Byte;
+var
+  i:byte;
+  ch:byte;
+begin
+  er:=0;
+  Result:=0;
+  for i:=s to s+2-1 do begin
+    ch:=byte(st[i]);
+    if ch>$39 then ch:=ch-7;
+    ch:=ch-$30;
+    if ch>$F then begin
+      Result:=$FF;
+      er:=-1;
+      exit;
+    end;
+    Result:=(Result shl 4)+ch;
+  end;
+  s:=s+2;
+end;
+
+Function mHexToWORDHL(var st:string;var s:word;var er:short):Word;
+var
+  i:byte;
+  ch:byte;
+begin
+  er:=0;
+  Result:=0;
+  for i:=s to s+4-1 do begin
+    ch:=byte(st[i]);
+    if ch>$39 then ch:=ch-7;
+    ch:=ch-$30;
+    if ch>$F then begin
+      Result:=$FFFF;
+      er:=-1;
+      exit;
+    end;
+    Result:=(Result shl 4)+ch;
+  end;
+  s:=s+4;
+end;
+
+Function mHexToRealLH(var st:string;var s:word;var er:short):Real;
+var
+  dw : ^dword;
+begin
+  dw := @result;
+  dw^ := mHexToDWORDLH(st,s,er);
+end;
+
+
+// сначало старшие потом младшие
+Function mHexToRealHL(var st:string;var s:word;var er:short):Real;
+var
+  dw : ^dword;
+begin
+  dw := @result;
+  dw^ := mHexToDWORDHL(st,s,er);
+end;
+
+Function mHexToDWORDLH(var st:string;var s:word;var er:short):DWord;
+var
+  i:byte;
+  ch:byte;
+  od : boolean; // четный нечетный бит
+begin
+  er:=0;
+  Result:=0;
+  od := False;
+  for i:=s to s+8-1 do begin
+    ch:=byte(st[i]);
+    if ch>$39 then ch:=ch-7;
+    ch:=ch-$30;
+    if ch>$F then begin
+      Result:=$FFFFFFFF;
+      er:=-1;
+      exit;
+    end;
+    if od then begin
+      Result := Result or dword(ch)shl 24;
+    end else begin
+      Result := (Result shr 8);
+      Result := Result or dword(ch)shl 28;
+    end;
+    od := not od;
+  end;
+  s:=s+8;
+end;
+
+Function mHexToDWORDHL(var st:string;var s:word;var er:short):DWord;
+var
+  i:byte;
+  ch:byte;
+begin
+  er:=0;
+  Result:=0;
+  for i:=s to s+8-1 do begin
+    ch:=byte(st[i]);
+    if ch>$39 then ch:=ch-7;
+    ch:=ch-$30;
+    if ch>$F then begin
+      Result:=$FFFFFFFF;
+      er:=-1;
+      exit;
+    end;
+    Result:=(Result shl 4)+ch;
+  end;
+  s:=s+8;
+end;
+
+// С какой стороны лежит точка
+Function StatePoint(lpx0,lpy0,lpx1,lpy1,ppx,ppy:real):double;
+begin
+  result := (ppx - lpx0) * (lpy1 - lpy0) - (ppy - lpy0) * (lpx1 - lpx0);
+end;
+
+
+end.

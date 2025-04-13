@@ -13,6 +13,7 @@ begin
 /////////////////////////////////////////////
   InitMainTimer();
   USART1DMA2init();
+  TranslateInit();
   TimersInit();
   InitTim1Ext(); // таймер 1 и 5 для подсчета имульсов оборотов
   Tim3DMAInit(); // 4 таймера для PWM50 или DHot150
@@ -25,6 +26,7 @@ begin
   Delay_ms(20);  {}
 
   while true do begin
+    TranslateRealtime();
   end;
 
 end.

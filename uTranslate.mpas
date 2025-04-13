@@ -1,0 +1,85 @@
+unit uTranslate;
+uses uUSART1DMA2p401,uLibProc;
+
+Procedure TranslateRealtime();
+Procedure TranslateInit();
+
+implementation
+
+const
+  LengthResiveBuf = 6000;
+
+var
+  Arh  : string[LengthResiveBuf+1]; //  Сдвиговый буфер, через который проходят все данные
+  LenArh : byte;
+  state:byte;  // текущее состояние транслятора
+
+
+Function Trans485(byterw:char):byte;
+var
+  tst : string[200];
+  tres : string[200];
+  // -----------------------
+  bval : byte;
+  i:word;
+begin
+  result:=0xFF;
+
+  if byterw='$' then begin // шапка
+    state:=0;
+    exit;
+  end else
+  if byterw=#13 then begin
+    byterw:=#0;
+  end;
+
+  if state>LengthResiveBuf then
+    exit;  // буфер закончился, ждем шапку
+
+  arh[state]:=byterw;
+  inc(state);
+
+  if byterw<>#0 then
+    exit; // комманду обрабатываем, только если Enter
+
+  LenArh := state-1;
+  state:=0xFF; //
+
+  if TestFirstStr(5,'EHLO!',arh) then begin
+    tst:= 'Hello!*';
+    tres := '@'+tst+#13+#10;
+    SendBufUSART1DMA2(@tres[0],length(tres));
+    exit;
+  end;
+  
+  
+end;
+
+
+Procedure TranslateRealtime();
+begin
+  if UART1StrBuf<>UART1EndBuf then begin
+    Trans485(UART1ResiveBuf[UART1EndBuf]);
+
+    inc(UART1EndBuf);
+    if UART1EndBuf>=UART1LengthResiveBuf then
+      UART1EndBuf:=0;
+      
+  end;
+
+end;
+
+Procedure TranslateInit();
+var
+  i:word;
+begin
+  for i:=0 to LengthResiveBuf do begin
+    arh[i]:=0x00;
+  end;
+  state:=0;
+end;
+
+
+
+
+end.
