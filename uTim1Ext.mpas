@@ -1,0 +1,79 @@
+unit uTim1Ext;
+
+// используем таймер как счетчик внешних импульсов
+Procedure InitTim1Ext;
+
+implementation
+
+Procedure InitTim1Ext;
+begin
+
+  GPIO_Alternate_Function_Enable(@_GPIO_MODULE_TIM1_CH1_PA8);
+  GPIO_Alternate_Function_Enable(@_GPIO_MODULE_TIM5_CH1_PA0);
+
+  TIM1_CR1.CEN := 0;          // Счетчик выключен
+  TIM1EN_bit   := 1;    // включили таймер в переферии
+
+  TIM5_CR1.CEN := 0;          // Счетчик выключен
+  TIM5EN_bit   := 1;    // включили таймер в переферии
+
+  // выбор источника сигнала
+  //1. Configure channel 2 to detect rising edges on the TI2 input by writing CC2S = ‘01’ in
+  //   the TIMx_CCMR1 register.
+  // CC2 channel is configured as input, IC2 is mapped on TI1
+  CC2S1_TIM1_CCMR1_Input_bit := 1;
+  CC2S0_TIM1_CCMR1_Input_bit := 0;
+
+  CC2S1_TIM5_CCMR1_Input_bit := 1;
+  CC2S0_TIM5_CCMR1_Input_bit := 0;
+
+  //2. Configure the input filter duration by writing the IC2F[3:0] bits in the TIMx_CCMR1
+  //   register (if no filter is needed, keep IC2F=0000)
+  
+  //3. Select rising edge polarity by writing CC2P=0 and CC2NP=0 in the TIMx_CCER
+  //  register
+  TIM1_CCER.CC1P :=0;
+  TIM1_CCER.CC1NP :=0;
+
+  TIM5_CCER.CC1P :=0;
+  TIM5_CCER.CC1NP :=0;
+
+  //4. Configure the timer in external clock mode 1 by writing SMS=111 in the TIMx_SMCR
+  //   register
+  TIM1_SMCR.SMS2 :=1;
+  TIM1_SMCR.SMS1 :=1;
+  TIM1_SMCR.SMS0 :=1;
+
+  TIM5_SMCR.SMS2 :=1;
+  TIM5_SMCR.SMS1 :=1;
+  TIM5_SMCR.SMS0 :=1;
+
+  //5. Select TI2 as the trigger input source by writing TS=110 in the TIMx_SMCR register.
+  TIM1_SMCR.TS2 :=1;
+  TIM1_SMCR.TS1 :=0;
+  TIM1_SMCR.TS0 :=1;
+
+  TIM5_SMCR.TS2 :=1;
+  TIM5_SMCR.TS1 :=0;
+  TIM5_SMCR.TS0 :=1;
+
+
+//  TIM1_SMCR.
+
+
+  TIM1_CNT  := 0;
+  TIM1_PSC  := 1-1;       // педварительный регистр (TIMx_PSC):  1 МHz = 1000 kHz
+  TIM1_ARR  := 0xFFFF;//0x1024;       // частота импульса ШИМ
+
+  TIM5_CNT  := 0;
+  TIM5_PSC  := 1-1;       // педварительный регистр (TIMx_PSC):  1 МHz = 1000 kHz
+  TIM5_ARR  := 0xFFFF;//0x1024;       // частота импульса ШИМ
+
+  TIM1_CR1.CEN := 1;          // Счетчик включен{}
+
+  TIM5_CR1.CEN := 1;          // Счетчик включен{}
+
+
+end;
+
+end.

@@ -1,0 +1,68 @@
+program MyProject;
+
+{ Declarations section }
+
+var
+//  LEDB   : sbit at GPIOC_ODR.13;
+  
+  str:string[10];
+  vv,vx,vy,vz:real;
+  
+  
+begin
+/////////////////////////////////////////////
+  InitMainTimer();
+  USART1DMA2init();
+  TimersInit();
+  InitTim1Ext(); // таймер 1 и 5 для подсчета имульсов оборотов
+  Tim3DMAInit(); // 4 таймера для PWM50 или DHot150
+
+  str:='Hello'+#13+#10;
+
+  SendBufUSART1DMA2(@str,length(str));
+  Delay_ms(20);
+  SendBufUSART1DMA2(@str,length(str));
+  Delay_ms(20);  {}
+
+  while true do begin
+  end;
+
+end.
+
+
+
+
+{  Dev1585Init();
+  TransDev1585Data(0x24);
+  TransDev1585Data(0x52);
+  TransDev1585Data(0x3C);
+  TransDev1585Data(0x00);
+  TransDev1585Data(0x01);
+  TransDev1585Data(0x01);
+
+//24 52 3c 04 06 09 01 32 00 38
+{  TransDev1585Data(0x24);
+  TransDev1585Data(0x52);
+  TransDev1585Data(0x3C);
+  TransDev1585Data(0x04);
+  TransDev1585Data(0x06);
+  TransDev1585Data(0x09);
+  TransDev1585Data(0x01);
+  TransDev1585Data(0x32);
+  TransDev1585Data(0x00);
+  TransDev1585Data(0x38);    {}
+
+{  TransDev1585Data(0x24);
+  TransDev1585Data(0x52);
+  TransDev1585Data(0x3C);
+  TransDev1585Data(0x08);
+  TransDev1585Data(0x03);
+  TransDev1585Data(0xCF);
+  TransDev1585Data(0x05);
+  TransDev1585Data(0xFF);
+  TransDev1585Data(0xFF);
+  TransDev1585Data(0xFF);
+  TransDev1585Data(0xFF);
+  TransDev1585Data(0xFF);
+  TransDev1585Data(0xFF);
+  TransDev1585Data(0xC1); {}

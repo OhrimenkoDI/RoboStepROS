@@ -1,0 +1,70 @@
+// процедуры для измерения системного времени
+// считаем тики:
+// максимальные
+// минимальные
+// средние - за последнийние 0xFFFFFFFF тиков таймера
+unit uTiming;
+
+var
+
+  Timer20msSet : Boolean;  //  Признак срабатывания таймера 20 мс/50 Гц
+
+
+  savemaintimer,maintimer,dtimer : dword;
+  HiTimer : byte;
+
+
+Procedure InitMainTimer;
+Procedure Set_System_Tick();
+
+// получить таймер
+Procedure SetTimer();
+
+implementation
+
+
+// SysTick 0.07767 секунды
+// 77.67 bit милисекунды
+// 12.87 раз в секунду
+procedure ISR_SysTick; iv IVT_INT_SysTick;  ics ICS_AUTO;
+begin
+  inc(HiTimer);
+end;
+
+// установить таймер
+Procedure SetTimer();
+begin
+  HiTimer :=0x00;
+  STK_VAL :=0x00FFFFFF;
+end;
+
+Procedure InitMainTimer;
+begin
+  ENABLE_bit         := 0;     // 0xE000E010 B0 Enable SysTick Timer
+  TICKINT_bit    := 0;     // 0xE000E010 B1 Enable SysTick Interrupt
+
+  HiTimer :=0x00;
+  STK_VAL :=0x00FFFFFF;
+  
+  STK_LOAD:=0xFFFFFFFF;
+
+  CLKSOURCE_bit :=1;
+  ENABLE_bit         := 1;     // 0xE000E010 B0 Enable SysTick Timer
+  TICKINT_bit     := 1;     // 0xE000E010 B1 Enable SysTick Interrupt
+
+end;
+
+Procedure Set_System_Tick();
+begin
+  STK_LOAD            := 0xFFFFFF; // 0xE000E014 Reload value when timer reaches 0
+  STK_VAL             := 0;     // 0xE000E018 Set Curent Value Register
+
+  // SysTick Control and Status Register
+  STK_CTRL.B0         := 1;     // 0xE000E010 B0 Enable SysTick Timer
+  STK_CTRL.TICKINT    := 1;     // 0xE000E010 B1 Enable SysTick Interrupt
+  STK_CTRL.CLKSOURCE  := 1;     // 0xE000E010 B2 Use processor free runing clock
+end;
+    {}
+
+
+end.

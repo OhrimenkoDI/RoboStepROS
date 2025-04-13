@@ -1,0 +1,121 @@
+unit uTimer401;
+uses uUSART1DMA2p401,uTim1Ext,uTim3DMA401;
+
+const
+  cOptoCNTCountFilter = 25;
+
+
+var
+  FazCNTRes,OptoCNTRes : dword;
+
+
+
+
+var
+
+  TimerOnlineFastStop: word;
+  TimerOnline: word;
+  TimerHello:  word;
+  Demo:word;
+  
+
+
+Procedure TimersInit;
+Procedure TimersRealTime;
+
+implementation
+
+
+type
+  recCnt = record
+    OptoCNT:word;
+    FazCNT:word;
+  end;
+
+var
+  Timer20msSet:boolean;
+  str,str1,str5:string[50];
+  cnt:byte;
+  
+  arCounter:array[0..cOptoCNTCountFilter-1] of recCnt;
+  OptoCNTOld,FazCNTOld :word;
+  OptoCNT,FazCNT :word;
+
+Procedure TimersRealTime;
+var
+ vw:word;
+begin
+  if Timer20msSet then begin
+    Timer20msSet:=False;
+//    LEDB:=not LEDB;
+    
+//    Led4:=not Led4;
+
+    inc(cnt);
+    if cnt>=cOptoCNTCountFilter then cnt:=0;
+    
+    OptoCNT:=word(TIM5_CNT);
+    vw:=OptoCNT-OptoCNTOld;
+    OptoCNTOld:=OptoCNT;
+    OptoCNTRes:=OptoCNTRes-arCounter[cnt].OptoCNT+vw;
+    arCounter[cnt].OptoCNT := vw;
+    
+    FazCNT:=word(TIM1_CNT);
+    vw:=FazCNT-FazCNTOld;
+    FazCNTOld:=FazCNT;
+    
+    FazCNTRes:=FazCNTRes-arCounter[cnt].FazCNT+vw;
+    arCounter[cnt].FazCNT := vw;
+
+    if TimerOnline>0 then dec(TimerOnline);
+    if TimerHello>0  then dec(TimerHello);
+    if TimerOnlineFastStop>0  then dec(TimerOnlineFastStop);
+
+    if TimerOnlineFastStop=0 then begin
+      SetPWMTimer(0xFFFF,0xFFFF,0xFFFF,0xFFFF);
+      SaveChanel(arTIM3Ch1,0xFFFF);
+      SaveChanel(arTIM3Ch2,0xFFFF);
+      SaveChanel(arTIM3Ch3,0xFFFF);
+      SaveChanel(arTIM3Ch4,0xFFFF);
+    end;
+    
+    
+  end;
+end;
+
+procedure Timer2_interrupt(); iv IVT_INT_TIM2; ics ICS_AUTO;
+begin
+  if UIF_TIM2_SR_bit then begin
+    UIF_TIM2_SR_bit := 0;
+    Timer20msSet := True;
+  end;
+end;
+
+
+Procedure TimersInit;
+begin
+  GPIO_Digital_Output(@GPIOC_BASE, _GPIO_PINMASK_13); // LEDB
+
+  TimerHello  := 5000 div 20;
+  Demo := 2;
+
+  // TIM2 - таймер времени 50 герц
+  // Счетчик регистров (TIM2_CNT 32-bit)
+  CEN_TIM2_CR1_bit := 0;          // Счетчик выключен
+  TIM2EN_bit   := 1;    // включили таймер
+  CEN_TIM2_CR1_bit := 0;          // Счетчик выключен
+
+  TIM2_CNT  := 0;
+  TIM2_PSC  := 84-1;       // педварительный регистр (TIMx_PSC):  1 МHz = 1000 kHz
+  TIM2_ARR  := 20000;       // частота импульса ШИМ
+  TIM2_CCR1 := 0;        // ширина импульса ШИМ  1.5 мс    1500 мкс = 1,5 * 1000
+  UIE_TIM2_DIER_bit := 1;         // 1: Update interrupt enabled
+  DIR_TIM2_CR1_bit := 0;
+  ARPE_TIM2_CR1_bit := 1;     // надо ставить в 1 при измерении частоты вне прерывания
+
+  NVIC_IntEnable(IVT_INT_TIM2);
+  CEN_TIM2_CR1_bit := 1;          // Счетчик включен{}
+  ///////////////////////////////////////////////////////////
+end;
+
+end.

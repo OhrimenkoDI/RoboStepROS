@@ -1,0 +1,224 @@
+unit uUSART1DMA2p401;
+
+Const
+  /// Внимание!!!
+  /// Размер и на прием и на отправку !!!!
+  /// Следи за размером!!!
+  UART1LengthResiveBuf = 64; // длина кольцевого буфера на прием данных
+
+  UART1Speed =  115200;
+
+var
+  LEDB   : sbit at GPIOC_ODR.13;
+
+  UART1ResiveBuf     : array [UART1LengthResiveBuf+1] of char;
+  UART1SendBufSend   : array [UART1LengthResiveBuf+1] of char;  // буфер на отсылку
+  UART1StrBuf  : byte; // Начало кольцевого буфера
+  UART1EndBuf  : byte; // Конец кольцевого буфера
+
+  DTR : sbit at GPIOB_IDR.8;  // на связи то 0
+
+Procedure USART1DMA2init;
+Procedure SendBufUSART1DMA2(p1 : ^byte; n : dword);
+
+Procedure HX711Realtime1; external;
+Procedure ADXL34Realtime1; external;
+
+implementation
+
+
+var
+ dw:dword;
+
+procedure Int_UART1(); iv IVT_INT_USART1; ics ICS_AUTO;
+begin
+  if IDLE_bit=1 then begin
+    dw:=USART1_DR; // дурацкая строка, но по другому никак
+    UART1StrBuf := UART1LengthResiveBuf - DMA2_S5NDTR; // сдвинули указатель начала кольцевого буфера
+  end;
+end;
+
+
+procedure INT_DMA2_5(); iv IVT_INT_DMA2_Stream5; ics ICS_AUTO;
+begin
+  if HTIF5_bit then begin
+    CHTIF5_bit := 1;
+  end;
+
+  if TCIF5_bit then begin
+    CTCIF5_bit := 1;
+  end;
+
+  if FEIF5_bit then begin
+    CFEIF5_bit:=1;
+  end;
+end;
+
+
+procedure INT_DMA2_7(); iv IVT_INT_DMA2_Stream7; ics ICS_AUTO;
+begin
+  if HTIF7_bit then begin
+    CHTIF7_bit := 1;
+  end;
+
+  if TCIF7_bit then begin
+    CTCIF7_bit := 1;
+  end;
+
+  if FEIF7_bit then begin
+    CFEIF7_bit:=1;
+  end;
+end;
+
+Procedure USART1DMA2init;
+begin
+  GPIO_Digital_Input(@GPIOB_BASE, _GPIO_PINMASK_8);
+
+
+  UART1_Init_Advanced(UART1Speed, _UART_8_BIT_DATA, _UART_NOPARITY,
+    _UART_ONE_STOPBIT, @_GPIO_MODULE_UART1_PB67);
+
+  CLKEN_USART1_CR2_bit :=0;
+
+  // Enable DMA2 CLOCK
+  RCC_AHB1ENR.DMA2EN := 1;
+
+  // Disable the DMA Stream by resetting EN bit to be able to change bit registers
+  DMA2_S7CR  := 0;
+  DMA2_S5CR  := 0;
+
+  // wait until EN=0 to make sure DMA is stopped
+  while (EN_DMA2_S7CR_bit=1) do nop;
+  while (EN_DMA2_S5CR_bit=1) do nop;
+
+  // All Stream Status dedicated registers to be cleared
+  CTCIF7_bit := 1;
+  CTCIF5_bit := 1;
+
+  // Direct mode
+  DMDIS_DMA2_S7FCR_bit :=0;
+  DMDIS_DMA2_S5FCR_bit :=0;
+
+  // Select DMA channel request number (CH4 for USART1)
+  CHSEL2_DMA2_S7CR_bit :=1;
+  CHSEL1_DMA2_S7CR_bit :=0;
+  CHSEL0_DMA2_S7CR_bit :=0;
+
+  CHSEL2_DMA2_S5CR_bit :=1;
+  CHSEL1_DMA2_S5CR_bit :=0;
+  CHSEL0_DMA2_S5CR_bit :=0;
+
+  // Config the stream priority (to Very High)
+  PL0_DMA2_S7CR_bit :=1;
+  PL1_DMA2_S7CR_bit :=1;
+
+  PL0_DMA2_S5CR_bit :=1;
+  PL1_DMA2_S5CR_bit :=1;
+
+  // Memory data size to 8 bit
+  MSIZE1_DMA2_S7CR_bit :=0;
+  MSIZE0_DMA2_S7CR_bit :=0;
+
+  MSIZE1_DMA2_S5CR_bit :=0;
+  MSIZE0_DMA2_S5CR_bit :=0;
+
+  // Peripheral data size to 8 bit
+  PSIZE1_DMA2_S7CR_bit :=0;
+  PSIZE0_DMA2_S7CR_bit :=0;
+
+  PSIZE1_DMA2_S5CR_bit :=0;
+  PSIZE0_DMA2_S5CR_bit :=0;
+
+
+  // Memory increment mode
+  MINC_DMA2_S7CR_bit := 1;
+  MINC_DMA2_S5CR_bit := 1;
+
+  // Peripheral increment mode
+  PINC_DMA2_S7CR_bit :=0;
+  PINC_DMA2_S5CR_bit :=0;
+
+  // Burst mode PERIPHERAL
+  PBURST1_DMA2_S7CR_bit :=0;
+  PBURST0_DMA2_S7CR_bit :=0;
+
+  PBURST1_DMA2_S5CR_bit :=0;
+  PBURST0_DMA2_S5CR_bit :=0;
+
+  // Burst mode Memory
+  MBURST1_DMA2_S7CR_bit :=0;
+  MBURST0_DMA2_S7CR_bit :=0;
+
+  MBURST1_DMA2_S5CR_bit :=0;
+  MBURST0_DMA2_S5CR_bit :=0;
+
+  // Data transfer direction (memory to peripheral)
+  DIR1_DMA2_S7CR_bit :=0;
+  DIR0_DMA2_S7CR_bit :=1;
+
+  DIR1_DMA2_S5CR_bit :=0;
+  DIR0_DMA2_S5CR_bit :=0;
+
+  // peripheral flow controller ,DMA flow
+  PFCTRL_DMA2_S7CR_bit := 0;
+  PFCTRL_DMA2_S5CR_bit := 0;
+
+  // Transfer complete interrupt enable
+  TCIE_DMA2_S7CR_bit := 1;
+  TCIE_DMA2_S5CR_bit := 1;
+
+  //'****************************************************************
+  // DMA mode is enabled for transmission
+  DMAT_bit :=1;    //7
+  DMAR_bit :=1;    //6
+
+  NVIC_IntEnable(IVT_INT_USART1);  // Включить прерывания от USART1
+  NVIC_IntEnable(IVT_INT_DMA2_Stream7); // ' Enable DMA2_Stream7 interrupt
+  NVIC_IntEnable(IVT_INT_DMA2_Stream5); // ' Enable DMA2_Stream7 interrupt
+
+  // Настройка регистра статуса прерывания
+  TC_bit      := 0;      //
+  IDLE_bit    := 0;      //
+
+
+
+   // Set peripheral port register address ; USART1 addr=40004400 and USART1_DR is at offset 0x4
+  DMA2_S7PAR := @USART1_DR;
+  DMA2_S5PAR := @USART1_DR;
+
+
+  CIRC_DMA2_S5CR_bit := 1;                // циклический буфер
+
+  DMA2_S5M0AR  := @UART1ResiveBuf;      // сам буфер
+  DMA2_S5NDTR  := UART1LengthResiveBuf;{}  // и его длина
+
+  UART1StrBuf := 0;
+  UART1EndBuf := 0;
+
+  EN_DMA2_S5CR_bit := 1;
+
+  IDLEIE_bit  := 1;     // разрешить прерывание по свободной линии
+
+end;
+
+Procedure SendBufUSART1DMA2(p1 : ^byte; n : dword);
+begin
+
+  while (DMA2_S7CR.EN=1) do begin
+    nop;
+{    HX711Realtime1();
+    ADXL34Realtime1();{}
+  end;
+
+  memcpy(@UART1SendBufSend, p1, n);
+
+  DMA2_S7M0AR := @UART1SendBufSend;//p1;
+  DMA2_S7NDTR := n;
+
+  DMA2_S7CR.EN :=1;
+
+end;
+
+end.
+// на контакте RTS или DTR присутствует 1
+// когда открывают порт, приходит 0
