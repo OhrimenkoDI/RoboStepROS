@@ -1,5 +1,6 @@
 program MyProject;
 
+
 { Declarations section }
 
 var
@@ -10,15 +11,19 @@ var
   
   
 begin
+  //LEDB
+  GPIO_Digital_Output(@GPIOC_BASE, _GPIO_PINMASK_13); // LEDB
+
 /////////////////////////////////////////////
   InitMainTimer();
   USART1DMA2init();
   TranslateInit();
-  TimersInit();
-  InitTim1Ext(); // таймер 1 и 5 для подсчета имульсов оборотов
+//  TimersInit();
+  TimEncoderInit();
+//  InitTim1Ext(); // таймер 1 и 5 для подсчета имульсов оборотов
   Tim3DMAInit(); // 4 таймера для PWM50 или DHot150
 
-  str:='Hello'+#13+#10;
+{  str:='Hello'+#13+#10;
 
   SendBufUSART1DMA2(@str,length(str));
   Delay_ms(20);

@@ -132,8 +132,8 @@ var
 begin
   z := Sqrt(Lx*Lx+Ly*Ly)*Sqrt(Sx*Sx+Sy*Sy);
   if z=0 then begin // Вектора нулевые
-    CosFi := 1;
-    SinFi := 0;
+    CosFi := 1.0;
+    SinFi := 0.0;
     exit;
   end;
   CosFi := (Lx*Sx+Ly*Sy)/z;
@@ -454,7 +454,6 @@ begin
   dw := @result;
   dw^ := mHexToDWORDLH(st,s,er);
 end;
-
 
 // сначало старшие потом младшие
 Function mHexToRealHL(var st:string;var s:word;var er:short):Real;

@@ -9,7 +9,7 @@ Const
   UART1Speed =  115200;
 
 var
-  LEDB   : sbit at GPIOC_ODR.13;
+//  LEDB   : sbit at GPIOC_ODR.13;
 
   UART1ResiveBuf     : array [UART1LengthResiveBuf+1] of char;
   UART1SendBufSend   : array [UART1LengthResiveBuf+1] of char;  // буфер на отсылку
@@ -183,13 +183,13 @@ begin
 
 
    // Set peripheral port register address ; USART1 addr=40004400 and USART1_DR is at offset 0x4
-  DMA2_S7PAR := @USART1_DR;
-  DMA2_S5PAR := @USART1_DR;
+  DMA2_S7PAR := dword(@USART1_DR);
+  DMA2_S5PAR := dword(@USART1_DR);
 
 
   CIRC_DMA2_S5CR_bit := 1;                // циклический буфер
 
-  DMA2_S5M0AR  := @UART1ResiveBuf;      // сам буфер
+  DMA2_S5M0AR  := dword(@UART1ResiveBuf);      // сам буфер
   DMA2_S5NDTR  := UART1LengthResiveBuf;{}  // и его длина
 
   UART1StrBuf := 0;
@@ -212,7 +212,7 @@ begin
 
   memcpy(@UART1SendBufSend, p1, n);
 
-  DMA2_S7M0AR := @UART1SendBufSend;//p1;
+  DMA2_S7M0AR := dword(@UART1SendBufSend);//p1;
   DMA2_S7NDTR := n;
 
   DMA2_S7CR.EN :=1;

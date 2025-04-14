@@ -82,19 +82,18 @@ begin
     
   end;
 end;
-
+{
 procedure Timer2_interrupt(); iv IVT_INT_TIM2; ics ICS_AUTO;
 begin
   if UIF_TIM2_SR_bit then begin
     UIF_TIM2_SR_bit := 0;
     Timer20msSet := True;
   end;
-end;
+end;   {}
 
 
 Procedure TimersInit;
 begin
-  GPIO_Digital_Output(@GPIOC_BASE, _GPIO_PINMASK_13); // LEDB
 
   TimerHello  := 5000 div 20;
   Demo := 2;

@@ -22,10 +22,10 @@ type
   tarTIM = array[0..cArCount-1]of word;
 
 var
-  RegRab : dword;
+  gRegRab : dword;
   StrRegRab:string[50];
 
-  Led4 : sbit at GPIOB_ODR.1; // выход кликов для тензо
+//  Led4 : sbit at GPIOB_ODR.1; // выход кликов для тензо
   
   arTIM3Ch1,
   arTIM3Ch2,
@@ -39,6 +39,7 @@ Procedure Tim3DMAInit;
 Procedure SetRegTimer(RegRab:Dword);
 Procedure SetPWMTimer(W1,W2,W3,W4:word);
 Procedure SaveChanel(var arTIM3Ch:tarTIM;varW:word);
+Procedure SetPWMChanel(VarChanel,varW:word);
 
 
 implementation
@@ -102,7 +103,7 @@ begin
     CTCIF4_DMA1_HIFCR_bit :=1;
   end;
   if HTIF4_DMA1_HISR_bit then begin
-    Led4:=not Led4;
+//    Led4:=not Led4;
       // требуется реализовать только при изменении данных
       if svarW1<>gvarW1 then begin
          svarW1:=gvarW1;
@@ -121,7 +122,7 @@ begin
         SaveChanel(arTIM3Ch4,svarW4);
       end;
 
-    Led4:=not Led4;{}
+//    Led4:=not Led4;{}
     CHTIF4_DMA1_HIFCR_bit := 1;
   end;
 end;
@@ -185,8 +186,8 @@ begin
   GPIO_Alternate_Function_Enable(@_GPIO_MODULE_TIM3_CH3_PB0);  //
 
 // это для теста, можно закоментитить одну строку
-//  GPIO_Alternate_Function_Enable(@_GPIO_MODULE_TIM3_CH4_PB1);  //
-  GPIO_Digital_Output(@GPIOB_BASE, _GPIO_PINMASK_1);
+  GPIO_Alternate_Function_Enable(@_GPIO_MODULE_TIM3_CH4_PB1);  //
+//  GPIO_Digital_Output(@GPIOB_BASE, _GPIO_PINMASK_1);
 
   TIM3_CR1 :=0;
   TIM3_CR2 := 0;
@@ -208,10 +209,10 @@ begin
   TIM3_PSC  := 28-1;       // педварительный регистр (TIMx_PSC):  84 МHz = 0.01190 мкс
   TIM3_ARR  := 20000*3-1;    // частота импульса ШИМ
 
-  TIM3_CCR1 := 0; // ширина импульса ШИМ
-  TIM3_CCR2 := 0; // по этому счетчику будем считывать значения в порту
-  TIM3_CCR3 := 0; // ширина импульса ШИМ
-  TIM3_CCR4 := 0; // по этому счетчику будем считывать значения в порту
+  TIM3_CCR1 := 1500*3; // ширина импульса ШИМ
+  TIM3_CCR2 := 1500*3; // по этому счетчику будем считывать значения в порту
+  TIM3_CCR3 := 1500*3; // ширина импульса ШИМ
+  TIM3_CCR4 := 1500*3; // по этому счетчику будем считывать значения в порту
 
 //  NVIC_IntEnable(IVT_INT_TIM3);
 //  TIM3_DIER.UIE := 1;         // 1: Update interrupt enabled
@@ -270,20 +271,20 @@ begin
   CHSEL1_DMA1_S2CR_bit :=0 ;
   CHSEL0_DMA1_S2CR_bit :=1 ;  //1
 ////////////////////////////////////////////////////////////////////////////////
-  DMA1_S4PAR   := @TIM3_CCR1;
-  DMA1_S4M0AR  := @arTIM3Ch1[0];      // сам буфер
+  DMA1_S4PAR   := dword(@TIM3_CCR1);
+  DMA1_S4M0AR  := dword(@arTIM3Ch1[0]);      // сам буфер
   DMA1_S4NDTR  := cArCount;  // и его длина
 
-  DMA1_S5PAR   := @TIM3_CCR2;
-  DMA1_S5M0AR  := @arTIM3Ch2[0];      // сам буфер
+  DMA1_S5PAR   := dword(@TIM3_CCR2);
+  DMA1_S5M0AR  := dword(@arTIM3Ch2[0]);      // сам буфер
   DMA1_S5NDTR  := cArCount;{}  // и его длина
   
-  DMA1_S7PAR   := @TIM3_CCR3;
-  DMA1_S7M0AR  := @arTIM3Ch3[0];      // сам буфер
+  DMA1_S7PAR   := dword(@TIM3_CCR3);
+  DMA1_S7M0AR  := dword(@arTIM3Ch3[0]);      // сам буфер
   DMA1_S7NDTR  := cArCount;{}  // и его длина
 
-  DMA1_S2PAR   := @TIM3_CCR4;
-  DMA1_S2M0AR  := @arTIM3Ch4[0];      // сам буфер
+  DMA1_S2PAR   := dword(@TIM3_CCR4);
+  DMA1_S2M0AR  := dword(@arTIM3Ch4[0]);      // сам буфер
   DMA1_S2NDTR  := cArCount;{}  // и его длина
 ////////////////////////////////////////////////////////////////////////////////
     MINC_DMA1_S4CR_bit :=1;  // Memory increment mode
@@ -352,7 +353,7 @@ begin
   CEN_TIM3_CR1_bit := 0;          // Счетчик выключен
   
   SetRegTimer(cReg_PWM50);
-  SetPWMTimer(0xFFFF,0xFFFF,0xFFFF,0xFFFF);
+  SetPWMTimer(500,1000,1500,2000);
 end;
 {
 // процедура для ленты RGB
@@ -388,7 +389,7 @@ begin
   if B.0 then tw:=cw1 else tw:=cw0; arTIM3Ch1[n*24+23]:=tw;
 end; {}
 
-Procedure SetRegTimer(RegRab:Dword);
+Procedure SetRegTimer(lRegRab:Dword);
 begin
   EN_DMA1_S4CR_bit:=0;
   EN_DMA1_S5CR_bit:=0;
@@ -401,7 +402,9 @@ begin
   TIM3_CCR4 := 0xFFFF; // по этому счетчику будем считывать значения в порту
   TIM3_CNT  := 0;
 
-  case RegRab of
+  gRegRab:=0;
+
+  case lRegRab of
     cReg_PWM50:begin
       TIM3_PSC  := 28-1;       // педварительный регистр (TIMx_PSC):  84 МHz = 0.01190 мкс
       TIM3_ARR  := 20000*3-1;
@@ -411,6 +414,7 @@ begin
       TIM3_CCR4 := 0;
       UG_TIM3_EGR_bit :=1 ;          // обновить все буферные регистры
       CEN_TIM3_CR1_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_PWM100:begin
       TIM3_PSC  := 28-1;       // педварительный регистр (TIMx_PSC):  84 МHz = 0.01190 мкс
@@ -421,6 +425,7 @@ begin
       TIM3_CCR4 := 0;
       UG_TIM3_EGR_bit :=1 ;          // обновить все буферные регистры
       CEN_TIM3_CR1_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_PWM200:begin
       TIM3_PSC  := 28-1;       // педварительный регистр (TIMx_PSC):  84 МHz = 0.01190 мкс
@@ -431,6 +436,7 @@ begin
       TIM3_CCR4 := 0;
       UG_TIM3_EGR_bit :=1 ;          // обновить все буферные регистры
       CEN_TIM3_CR1_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_PWM300:begin
       TIM3_PSC  := 28-1;       // педварительный регистр (TIMx_PSC):  84 МHz = 0.01190 мкс
@@ -441,6 +447,7 @@ begin
       TIM3_CCR4 := 0;
       UG_TIM3_EGR_bit :=1 ;          // обновить все буферные регистры
       CEN_TIM3_CR1_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_PWM400:begin
       TIM3_PSC  := 28-1;       // педварительный регистр (TIMx_PSC):  84 МHz = 0.01190 мкс
@@ -451,6 +458,7 @@ begin
       TIM3_CCR4 := 0;
       UG_TIM3_EGR_bit :=1 ;          // обновить все буферные регистры
       CEN_TIM3_CR1_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_PWM500:begin
       TIM3_PSC  := 28-1;       // педварительный регистр (TIMx_PSC):  84 МHz = 0.01190 мкс
@@ -461,6 +469,7 @@ begin
       TIM3_CCR4 := 0;
       UG_TIM3_EGR_bit :=1 ;          // обновить все буферные регистры
       CEN_TIM3_CR1_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_DShot150:begin
       TIM3_PSC  := 1-1;  // педварительный регистр (TIMx_PSC):  84 МHz = 0.011904761 мкс
@@ -481,6 +490,7 @@ begin
       EN_DMA1_S5CR_bit:=1;
       EN_DMA1_S7CR_bit:=1;
       EN_DMA1_S2CR_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_DShot300:begin
       TIM3_PSC  := 1-1;  // педварительный регистр (TIMx_PSC):  84 МHz = 0.011904761 мкс
@@ -503,6 +513,7 @@ begin
       EN_DMA1_S5CR_bit:=1;
       EN_DMA1_S7CR_bit:=1;
       EN_DMA1_S2CR_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_DShot600:begin
       TIM3_PSC  := 1-1;  // педварительный регистр (TIMx_PSC):  84 МHz = 0.011904761 мкс
@@ -525,6 +536,7 @@ begin
       EN_DMA1_S5CR_bit:=1;
       EN_DMA1_S7CR_bit:=1;
       EN_DMA1_S2CR_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_MultiShot:begin
       TIM3_PSC  := 1-1;
@@ -535,6 +547,7 @@ begin
       TIM3_CCR4 := 0;
       UG_TIM3_EGR_bit :=1 ;          // обновить все буферные регистры
       CEN_TIM3_CR1_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_OneShot42:begin
       TIM3_PSC  := 1-1;
@@ -545,6 +558,7 @@ begin
       TIM3_CCR4 := 0;
       UG_TIM3_EGR_bit :=1 ;          // обновить все буферные регистры
       CEN_TIM3_CR1_bit:=1;
+      gRegRab:=lRegRab;
     end;
     cReg_OneShot125:begin
       TIM3_PSC  := 1-1;
@@ -555,6 +569,7 @@ begin
       TIM3_CCR4 := 0;
       UG_TIM3_EGR_bit :=1 ;          // обновить все буферные регистры
       CEN_TIM3_CR1_bit:=1;
+      gRegRab:=lRegRab;
     end;
   end;
 end;
@@ -565,7 +580,7 @@ Procedure SetPWMTimer(varW1,varW2,varW3,varW4:word);
 var
   i:byte;
 begin
-  case RegRab of
+  case gRegRab of
     cReg_PWM50:begin
       if varW1>2000 then TIM3_CCR1:=0 else TIM3_CCR1 := varW1*3;
       if varW2>2000 then TIM3_CCR2:=0 else TIM3_CCR2 := varW2*3;
@@ -609,73 +624,24 @@ begin
       if varW4>300 then TIM3_CCR4:=0 else TIM3_CCR4 := varW4*7;
     end;
     cReg_OneShot42:begin
-      if varW1>2000 then TIM3_CCR1:=0 else TIM3_CCR1 := varW1*3.528;
-      if varW2>2000 then TIM3_CCR2:=0 else TIM3_CCR2 := varW2*3.528;
-      if varW3>2000 then TIM3_CCR3:=0 else TIM3_CCR3 := varW3*3.528;
-      if varW4>2000 then TIM3_CCR4:=0 else TIM3_CCR4 := varW4*3.528;
+      if varW1>2000 then TIM3_CCR1:=0 else TIM3_CCR1 := word(real(varW1)*3.528);
+      if varW2>2000 then TIM3_CCR2:=0 else TIM3_CCR2 := word(real(varW2)*3.528);
+      if varW3>2000 then TIM3_CCR3:=0 else TIM3_CCR3 := word(real(varW3)*3.528);
+      if varW4>2000 then TIM3_CCR4:=0 else TIM3_CCR4 := word(real(varW4)*3.528);
     end;
-    cReg_OneShot125:begin
-      if varW1>2000 then TIM3_CCR1:=0 else TIM3_CCR1 := varW1*10.5;
-      if varW2>2000 then TIM3_CCR2:=0 else TIM3_CCR2 := varW2*10.5;
-      if varW3>2000 then TIM3_CCR3:=0 else TIM3_CCR3 := varW3*10.5;
-      if varW4>2000 then TIM3_CCR4:=0 else TIM3_CCR4 := varW4*10.5;
-    end;
-    cReg_DShot150,
-    cReg_DShot300,
-    cReg_DShot600:begin
-      gvarW1:=varW1;
-      gvarW2:=varW2;
-      gvarW3:=varW3;
-      gvarW4:=varW4; {
-
-      csum_data:= (varW1 shl 1)or 0;
-      crc:=(csum_data shr 4)xor csum_data;
-      crc1:=((crc xor (crc shr 8)))and 0x0F;
-
-      csum_data:= (varW2 shl 1)or 0;
-      crc:=(csum_data shr 4)xor csum_data;
-      crc2:=((crc xor (crc shr 8)))and 0x0F;
-
-      csum_data:= (varW3 shl 1)or 0;
-      crc:=(csum_data shr 4)xor csum_data;
-      crc3:=((crc xor (crc shr 8)))and 0x0F;
-
-      csum_data:= (varW4 shl 1)or 0;
-      crc:=(csum_data shr 4)xor csum_data;
-      crc4:=((crc xor (crc shr 8)))and 0x0F;
-
-      for i:=0 to 10 do begin
-        if varW1.10=1 then arTIM3Ch1[i]:=VarCW1 else arTIM3Ch1[i]:=VarCW0;
-           varW1:=varW1 shl 1;
-        if varW2.10=1 then arTIM3Ch2[i]:=VarCW1 else arTIM3Ch2[i]:=VarCW0;
-           varW2:=varW2 shl 1;
-        if varW3.10=1 then arTIM3Ch3[i]:=VarCW1 else arTIM3Ch3[i]:=VarCW0;
-           varW3:=varW3 shl 1;
-        if varW4.10=1 then arTIM3Ch4[i]:=VarCW1 else arTIM3Ch4[i]:=VarCW0;
-           varW4:=varW4 shl 1;
-      end;
-      
-      arTIM3Ch1[11]:=VarCW0;
-      arTIM3Ch2[11]:=VarCW0;
-      arTIM3Ch3[11]:=VarCW0;
-      arTIM3Ch4[11]:=VarCW0;
-      
-      for i:=12 to 15 do begin
-        if crc1.3=1 then arTIM3Ch1[i]:=VarCW1 else arTIM3Ch1[i]:=VarCW0;
-           crc1:=crc1 shl 1;
-        if crc2.3=1 then arTIM3Ch2[i]:=VarCW1 else arTIM3Ch2[i]:=VarCW0;
-           crc2:=crc2 shl 1;
-        if crc3.3=1 then arTIM3Ch3[i]:=VarCW1 else arTIM3Ch3[i]:=VarCW0;
-           crc3:=crc3 shl 1;
-        if crc4.3=1 then arTIM3Ch4[i]:=VarCW1 else arTIM3Ch4[i]:=VarCW0;
-           crc4:=crc4 shl 1;
-      end;  {}
-    end;
-
   end;
 
 end;
 
+Procedure SetPWMChanel(varChanel,varW:word);
+begin
+  case varChanel of
+    1:if varW>2000 then TIM3_CCR1:=0 else TIM3_CCR1 := varW*3;
+    2:if varW>2000 then TIM3_CCR2:=0 else TIM3_CCR2 := varW*3;
+    3:if varW>2000 then TIM3_CCR3:=0 else TIM3_CCR3 := varW*3;
+    4:if varW>2000 then TIM3_CCR4:=0 else TIM3_CCR4 := varW*3;
+  end;
+end;
 
 end.
 
