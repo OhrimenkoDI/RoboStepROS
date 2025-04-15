@@ -5,34 +5,6 @@ Procedure TimEncoderInit();
 
 implementation
 
-var
-  LEDB   : sbit at GPIOC_ODR.13;
-
-
-
-procedure INTTIM2(); iv IVT_INT_TIM2; ics ICS_AUTO;
-begin
-begin
-  if UIF_TIM2_SR_bit then begin
-    // с учетом знака
-    //OdomIner(arWheel[1],TIM2_CNT.6);  // x-  y+
-    LEDB:=not LEDB;
-    UIF_TIM2_SR_bit := 0;
-  end;
-end;
-
-end;
-
-procedure INTTIM5(); iv IVT_INT_TIM5; ics ICS_AUTO;
-begin
-  if UIF_TIM5_SR_bit then begin
-    // с учетом знака
-    //OdomIner(arWheel[1],TIM2_CNT.6);  // x-  y+
-    LEDB:=not LEDB;
-    UIF_TIM5_SR_bit := 0;
-  end;
-end;
-
 
 
 Procedure TimEncoderInit();
@@ -85,8 +57,8 @@ begin
   TS2_TIM2_SMCR_bit := 1;
 
   TIM2_CNT  := 0x0000;
-  TIM2_PSC  := 0x0000;  // педварительный регистр
-  TIM2_ARR  := 1024;//0x800-1;    //  0x80=128
+  TIM2_PSC  := 1-1;  // педварительный регистр
+  TIM2_ARR  := 256-1;
 
   NVIC_IntEnable(IVT_INT_TIM2);
   UIE_TIM2_DIER_bit := 1;         // 1: Update interrupt enabled
@@ -146,8 +118,8 @@ begin
   TS2_TIM5_SMCR_bit := 1;
 
   TIM5_CNT  := 0x0000;
-  TIM5_PSC  := 0x0000;  // педварительный регистр
-  TIM5_ARR  := 1024;//0x800-1;    //  0x80=128
+  TIM5_PSC  := 1-1;  // педварительный регистр
+  TIM5_ARR  := 256-1;
 
   NVIC_IntEnable(IVT_INT_TIM5);
   UIE_TIM5_DIER_bit := 1;         // 1: Update interrupt enabled

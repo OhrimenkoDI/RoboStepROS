@@ -1,6 +1,6 @@
 unit uTranslate;
 
-uses uUSART1DMA2p401, uTim3DMA401, uLibProc;
+uses uUSART1DMA2p401, uTim3DMA401, uLibProc, uDriveFun;
 
 Procedure TranslateRealtime();
 Procedure TranslateInit();
@@ -14,14 +14,18 @@ var
   Arh  : string[LengthResiveBuf+1]; //  Сдвиговый буфер, через который проходят все данные
   LenArh : byte;
   state:byte;  // текущее состояние транслятора
-
+  glXtel     : real;
+  glYtel     : real;
+  glCosFitel : real;
+  glSinFitel : real;
+  tst1 : string[30];
+  tst2 : string[30];
+  tst3 : string[30];
+  tst4 : string[30];
 
 Function Trans485(byterw:char):byte;
 var
   tst : string[200];
-  tst1 : string[10];
-  tst2 : string[10];
-  tst3 : string[10];
   tres : string[200];
   // -----------------------
   bval : byte;
@@ -69,6 +73,28 @@ begin
 
     exit;
   end;  {}
+
+
+
+  if TestFirstStr(6,'GETPOS',arh) then begin
+
+    Odometr_NVIC_IntDisabled();
+    glXtel     := IntpXg+IntpsmX;
+    glYtel     := IntpYg+IntpsmY;
+    glCosFitel := IntpCosFi;
+    glSinFitel := IntpSinFi;
+    Odometr_NVIC_IntEnable();
+
+    FloatToStr(glXtel,tst1);
+    FloatToStr(glYtel,tst2);
+    FloatToStr(glCosFitel,tst3);
+    FloatToStr(glSinFitel,tst4);
+    tres := '@POS='+tst1+' '+tst2+' '+tst3+' '+tst4+#13+#10;
+
+    SendBufUSART1DMA2(@tres[0],length(tres));
+    exit;
+  end;
+
 
   
 end;

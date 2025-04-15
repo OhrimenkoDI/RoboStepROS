@@ -22,6 +22,8 @@ begin
   TimEncoderInit();
 //  InitTim1Ext(); // таймер 1 и 5 для подсчета имульсов оборотов
   Tim3DMAInit(); // 4 таймера для PWM50 или DHot150
+  
+  OdomInerInit();
 
 {  str:='Hello'+#13+#10;
 
@@ -32,6 +34,12 @@ begin
 
   while true do begin
     TranslateRealtime();
+{    if TIMCNT<>155 then begin
+      WordToStr(TIMCNT,str);
+      TIMCNT:=155;
+      str := '@ '+str+#13+#10;
+      SendBufUSART1DMA2(@str[0],length(str));
+    end;  {}
   end;
 
 end.

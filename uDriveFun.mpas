@@ -1,0 +1,184 @@
+unit uDriveFun;
+
+const
+  // Константы приводов
+
+  cDriveLEFT      =  %00000001; // -  Левый привод
+  cDriveRIGTH     =  %00000010; // -  Правый привод
+  
+  cDirForward  =  1; // направление вращения привода
+  cDirBack     =  0; // направление вращения привода
+
+  // Импульсов на оборот энкодера
+  cimpRevMotMOVE  = 20;
+
+  // Ширина по колесам тележки
+  cTelBaseMOVE = 0.280;
+  // Диаметр приводного колеса
+  cDkMOVE  = 0.130;
+  
+  // Передаточное число от колеса к энкодеру
+  curedMOVE  = 1.0;
+
+  cStepMOVE =  cDkMOVE*Pi/curedMOVE/cimpRevMotMOVE;
+
+  // Шаг угла поворота на шаг колеса
+  cFistepMOVE  = cStepMOVE / cTelBaseMOVE  ;
+  
+  
+type
+
+tspeedRampData = record
+  Direction   : byte;     // 0 бит - Направление вращения шагового мотора
+  Drive       : byte;    // номер привода
+
+  SetPosition : word; // куда надо ехать
+  TekPosition : word; // где сейчас
+end;
+
+
+var
+  IntpXg,IntpYg,IntpCosFi,IntpSinFi : real;  //переменные для работы в прерывании
+  IntpsmX,
+  IntpsmY: real; // складываем маленькое с маленьким
+  TIMCNT : dword;
+
+  
+  
+procedure OdomIner(var srd:tspeedRampData; dir:boolean);
+procedure OdomInerInit();
+
+Procedure Odometr_NVIC_IntEnable;
+Procedure Odometr_NVIC_IntDisabled;
+
+
+implementation
+
+
+var
+  LEDB   : sbit at GPIOC_ODR.13;
+  srdL,srdR : tspeedRampData;
+
+procedure OdomInerInit();
+begin
+  IntpXg   := 0.0;
+  IntpYg   := 0.0;
+  IntpCosFi:= 1.0;
+  IntpSinFi:= 0.0;
+  IntpsmX  := 0.0;
+  IntpsmY  := 0.0;
+  
+  srdL.Drive:=cDriveLEFT;
+  srdR.Drive:=cDriveRIGTH;
+end;
+
+
+
+procedure INTTIM2(); iv IVT_INT_TIM2; ics ICS_AUTO;
+begin
+begin
+  if UIF_TIM2_SR_bit then begin
+    TIMCNT := TIM2_CNT;
+    // с учетом знака
+    OdomIner(srdR,TIM2_CNT.6);
+    LEDB:=TIM2_CNT.6;
+    UIF_TIM2_SR_bit := 0;
+  end;
+end;
+
+end;
+
+procedure INTTIM5(); iv IVT_INT_TIM5; ics ICS_AUTO;
+begin
+  if UIF_TIM5_SR_bit then begin
+    TIMCNT := TIM5_CNT;
+    OdomIner(srdL,TIM5_CNT.6);
+    LEDB:=TIM5_CNT.6;
+    UIF_TIM5_SR_bit := 0;
+  end;
+end;
+
+Procedure Odometr_NVIC_IntEnable;
+begin
+  NVIC_IntEnable(IVT_INT_TIM2);
+  NVIC_IntEnable(IVT_INT_TIM5);
+end;
+
+Procedure Odometr_NVIC_IntDisabled;
+begin
+  NVIC_IntDisable(IVT_INT_TIM2);
+  NVIC_IntDisable(IVT_INT_TIM5);
+end;
+
+
+
+
+
+
+
+var
+  needNorma : byte;
+
+procedure OdomIner(var srd:tspeedRampData; dir:boolean);
+var
+  dFi : real;
+  CosFit : real;
+begin
+  srd.Direction := dir;
+  // правый вперед
+  if (srd.Drive=cDriveRIGTH) and (srd.Direction=cDirForward) then begin
+      IntpsmX  := IntpsmX + cstepMOVE * IntpCosFi;
+      IntpsmY  := IntpsmY + cstepMOVE * IntpSinFi;
+      dFi  :=  cFistepMOVE;
+  end else
+  // правый назад
+  if (srd.Drive=cDriveRIGTH) and (srd.Direction=cDirBack) then begin
+      IntpsmX  := IntpsmX - cstepMOVE * IntpCosFi;
+      IntpsmY  := IntpsmY - cstepMOVE * IntpSinFi;
+      dFi  :=  -cFistepMOVE;
+  end else
+  // левый вперед
+  if (srd.Drive=cDriveLEFT) and (srd.Direction=cDirForward) then begin
+      IntpsmX  := IntpsmX + cstepMOVE * IntpCosFi;
+      IntpsmY  := IntpsmY + cstepMOVE * IntpSinFi;
+      dFi  := -cFistepMOVE;
+  end else
+  // левый назад
+  if (srd.Drive=cDriveLEFT) and (srd.Direction=cDirBack) then begin
+      IntpsmX  := IntpsmX - cstepMOVE * IntpCosFi;
+      IntpsmY  := IntpsmY - cstepMOVE * IntpSinFi;
+      dFi  := cFistepMOVE;
+  end;
+
+  if (srd.Drive=cDriveLEFT)or(srd.Drive=cDriveRIGTH) then begin
+    // если считать, что шаг одометрии примероно 0.5 мм а поле работы 500 метров, т.е. отношение
+    // 1:1000000
+    // то 0.5 по середине  1:1000
+    // т.е. smX и smY работает и с малыми и с большими
+    if (IntpsmX>0.5) or (IntpsmX<-0.5) then begin
+      IntpXg  := IntpXg+IntpsmX;
+      IntpsmX := 0.0;
+    end;
+    if (IntpsmY>0.5) or (IntpsmY<-0.5) then begin
+      IntpYg  := IntpYg+IntpsmY;
+      IntpsmY := 0.0;
+    end; {}
+
+    CosFit := IntpCosFi; // сохранили, так как будем менять
+    IntpCosFi := IntpCosFi - dFi * IntpSinFi;
+    IntpSinFi := IntpSinFi + dFi * CosFit;  // используем  CosFit сохраненный
+
+//    if needNorma=0 then begin
+      // нормализация
+      dFi := IntpCosFi*IntpCosFi + IntpSinFi*IntpSinFi;
+      dFi := 0.5 + 0.5*dFi;     // интерполяция квадратного корня при dFi~1.0
+      IntpCosFi := IntpCosFi/dFi;
+      IntpSinFi := IntpSinFi/dFi;
+ //   end;
+
+ //   inc(needNorma);
+  end;
+end;
+
+
+end.
